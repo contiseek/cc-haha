@@ -4,7 +4,7 @@ import { TextArea } from '@/components/ui/TextArea'
 import { useTranslation } from '../../i18n'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { AttachmentGallery } from './AttachmentGallery'
-import { shouldSubmitOnEnter } from './sendShortcut'
+import { resolveComposerEnterAction } from './sendShortcut'
 import type { UserMessageEditDraft } from './userMessageEdit'
 
 type Props = {
@@ -29,6 +29,7 @@ export function UserMessageEditor({
 }: Props) {
   const t = useTranslation()
   const chatSendBehavior = useSettingsStore((state) => state.chatSendBehavior)
+  const chatLineBreakBehavior = useSettingsStore((state) => state.chatLineBreakBehavior)
   const [draft, setDraft] = useState(initialDraft)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const composingRef = useRef(false)
@@ -61,10 +62,29 @@ export function UserMessageEditor({
       if (!submitting) onCancel()
       return
     }
-    if (shouldSubmitOnEnter(event, chatSendBehavior)) {
+    const enterAction = resolveComposerEnterAction(event, chatSendBehavior, chatLineBreakBehavior)
+    if (enterAction === 'submit') {
       event.preventDefault()
       if (canSubmit) onSubmit(draft)
+      return
     }
+    if (enterAction === 'newline') {
+      event.preventDefault()
+      const selectionStart = event.currentTarget.selectionStart ?? draft.text.length
+      const selectionEnd = event.currentTarget.selectionEnd ?? selectionStart
+      updateDraft({
+        ...draft,
+        text: `${draft.text.slice(0, selectionStart)}\n${draft.text.slice(selectionEnd)}`,
+      })
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current
+        if (!textarea) return
+        const caret = selectionStart + 1
+        textarea.setSelectionRange(caret, caret)
+      })
+      return
+    }
+    if (event.key === 'Enter') event.preventDefault()
   }
 
   return (

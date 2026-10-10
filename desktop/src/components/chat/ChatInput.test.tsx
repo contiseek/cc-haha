@@ -3063,6 +3063,7 @@ describe('ChatInput file mentions', () => {
   it('uses Shift+Enter for a newline when Enter is the configured send shortcut', async () => {
     useSettingsStore.setState({
       chatSendBehavior: 'enter',
+      chatLineBreakBehavior: 'shiftEnter',
     })
 
     render(<ChatInput />)
@@ -3087,12 +3088,37 @@ describe('ChatInput file mentions', () => {
     })
   })
 
+  it('ignores an Enter combination that is neither the send nor the line break shortcut', async () => {
+    useSettingsStore.setState({
+      chatSendBehavior: 'enter',
+      chatLineBreakBehavior: 'shiftEnter',
+    })
+
+    render(<ChatInput />)
+
+    await waitFor(() => {
+      expect(mocks.getGitInfo).toHaveBeenCalledWith(sessionId)
+    })
+
+    const input = getComposerElement()
+    setComposerText('firstsecond', 5)
+
+    fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true })
+    expect(mocks.wsSend).not.toHaveBeenCalled()
+    expect(getComposerText()).toBe('firstsecond')
+
+    fireEvent.keyDown(input, { key: 'Enter', altKey: true })
+    expect(mocks.wsSend).not.toHaveBeenCalled()
+    expect(getComposerText()).toBe('firstsecond')
+  })
+
   it.each([
     ['Ctrl+Enter', { ctrlKey: true }],
     ['Command+Enter', { metaKey: true }],
-  ])('uses Enter or Shift+Enter for newlines and %s to send when configured', async (_shortcut, modifier) => {
+  ])('uses Shift+Enter for newlines and %s to send when configured', async (_shortcut, modifier) => {
     useSettingsStore.setState({
       chatSendBehavior: 'modifierEnter',
+      chatLineBreakBehavior: 'shiftEnter',
     })
 
     render(<ChatInput />)
@@ -3106,18 +3132,42 @@ describe('ChatInput file mentions', () => {
 
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(mocks.wsSend).not.toHaveBeenCalled()
-    expect(getComposerText()).toBe('first\nsecond')
+    expect(getComposerText()).toBe('firstsecond')
 
     fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
     expect(mocks.wsSend).not.toHaveBeenCalled()
-    expect(getComposerText()).toBe('first\n\nsecond')
+    expect(getComposerText()).toBe('first\nsecond')
 
     fireEvent.keyDown(input, { key: 'Enter', ...modifier })
     expect(mocks.wsSend).toHaveBeenCalledWith(sessionId, {
       type: 'user_message',
-      content: 'first\n\nsecond',
+      content: 'first\nsecond',
       attachments: [],
     })
+  })
+
+  it.each([
+    ['ctrlEnter', 'enter', { ctrlKey: true }],
+    ['altEnter', 'enter', { altKey: true }],
+    ['enter', 'modifierEnter', {}],
+  ])('inserts a newline with the %s shortcut while %s sends', async (lineBreak, send, modifiers) => {
+    useSettingsStore.setState({
+      chatSendBehavior: send as 'enter' | 'modifierEnter',
+      chatLineBreakBehavior: lineBreak as 'ctrlEnter' | 'altEnter' | 'enter',
+    })
+
+    render(<ChatInput />)
+
+    await waitFor(() => {
+      expect(mocks.getGitInfo).toHaveBeenCalledWith(sessionId)
+    })
+
+    const input = getComposerElement()
+    setComposerText('firstsecond', 5)
+
+    fireEvent.keyDown(input, { key: 'Enter', ...modifiers })
+    expect(mocks.wsSend).not.toHaveBeenCalled()
+    expect(getComposerText()).toBe('first\nsecond')
   })
 
   it('opens the model selector for /model without sending a user message', async () => {

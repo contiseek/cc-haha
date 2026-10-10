@@ -75,7 +75,7 @@ import {
   type ComposerAttachment,
 } from '../../lib/composerAttachments'
 import { useComposerFileDrop } from './useComposerFileDrop'
-import { shouldSubmitOnEnter } from './sendShortcut'
+import { resolveComposerEnterAction, shouldSubmitOnEnter } from './sendShortcut'
 import { MentionComposer, type MentionComposerHandle } from './MentionComposer'
 import {
   composerReferenceToMention,
@@ -259,6 +259,7 @@ export function ChatInput({ variant = 'default', compact = false, sessionId, vis
   )
   const currentModel = useSettingsStore((state) => state.currentModel)
   const chatSendBehavior = useSettingsStore((state) => state.chatSendBehavior)
+  const chatLineBreakBehavior = useSettingsStore((state) => state.chatLineBreakBehavior)
   const runtimeSelectionKey = runtimeSelection
     ? `${runtimeSelection.providerId ?? 'official'}:${runtimeSelection.modelId}:${runtimeSelection.effortLevel ?? 'auto'}`
     : undefined
@@ -1122,9 +1123,19 @@ export function ChatInput({ variant = 'default', compact = false, sessionId, vis
       }
     }
 
-    if (shouldSubmitOnEnter(event, chatSendBehavior)) {
+    const enterAction = resolveComposerEnterAction(event, chatSendBehavior, chatLineBreakBehavior)
+    if (enterAction === 'submit') {
       event.preventDefault()
       void handleSubmit()
+      return true
+    }
+    if (enterAction === 'newline') {
+      event.preventDefault()
+      composerRef.current?.insertNewline()
+      return true
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
       return true
     }
     return false

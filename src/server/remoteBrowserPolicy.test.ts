@@ -14,6 +14,8 @@ test('remote settings boundary permits only intended provider routes and General
   expect(validateRemoteSettingsPatch({ hooks: {} })).toBe(false)
   expect(validateRemoteSettingsPatch({ alwaysThinkingEnabled: 'true' })).toBe(false)
   expect(validateRemoteSettingsPatch({ chatSendBehavior: 'modifierEnter' })).toBe(true)
+  expect(validateRemoteSettingsPatch({ chatLineBreakBehavior: 'altEnter' })).toBe(true)
+  expect(validateRemoteSettingsPatch({ chatLineBreakBehavior: 'ctrlCombo' })).toBe(false)
   expect(validateRemoteSettingsPatch({ language: '' })).toBe(true)
   expect(validateRemoteSettingsPatch({ autoQuestion: { enabled: true, timeoutMinutes: 5 } })).toBe(true)
   expect(validateRemoteSettingsPatch({ autoQuestion: { enabled: true, timeoutMinutes: 3 } })).toBe(false)

@@ -6,7 +6,7 @@ import { settingsApi } from '@/api/settings'
 import { modelsApi } from '@/api/models'
 import { SettingsGroup, SettingsRow, SettingsSection, SettingsSwitchRow } from '@/components/settings/SettingsSection'
 import { SelectField, type SelectFieldProps } from '@/components/ui/SelectField'
-import type { ChatSendBehavior, ThemeMode, UserSettings, EffortLevel } from '@/types/settings'
+import { chatLineBreakConflictsWithSend, type ChatLineBreakBehavior, type ChatSendBehavior, type ThemeMode, type UserSettings, type EffortLevel } from '@/types/settings'
 
 export function H5GeneralSettings() {
   const t = useTranslation()
@@ -52,6 +52,17 @@ export function H5GeneralSettings() {
   const styles = [{ value: 'default', label: t('settings.general.outputStyleBuiltin.default.label') },
     { value: 'Explanatory', label: t('settings.general.outputStyleBuiltin.explanatory.label') }, { value: 'Learning', label: t('settings.general.outputStyleBuiltin.learning.label') }]
   if (settings.outputStyle && !styles.some((item) => item.value === settings.outputStyle)) styles.push({ value: settings.outputStyle, label: settings.outputStyle })
+  const lineBreakLabels: Record<ChatLineBreakBehavior, string> = {
+    ctrlEnter: t('settings.general.chatLineBreakCtrlEnter'),
+    altEnter: t('settings.general.chatLineBreakAltEnter'),
+    shiftEnter: t('settings.general.chatLineBreakShiftEnter'),
+    enter: t('settings.general.chatLineBreakEnter'),
+  }
+  const lineBreakBehaviors: { value: ChatLineBreakBehavior, label: string, disabled: boolean }[] = (['ctrlEnter', 'altEnter', 'shiftEnter', 'enter'] as const).map((value) => ({
+    value,
+    label: lineBreakLabels[value],
+    disabled: chatLineBreakConflictsWithSend(value, settings.chatSendBehavior),
+  }))
   // Native selects on purpose: this pane renders on a phone, where the OS
   // picker is the usable one. Each sits in a settings row, named by its title.
   const select = <T extends string>(label: string, field: Omit<SelectFieldProps<T>, 'label' | 'labelHidden' | 'size'>) => (
@@ -73,6 +84,7 @@ export function H5GeneralSettings() {
         {select(t('settings.general.outputStyleTitle'), { disabled: busy, value: settings.outputStyle || 'default', options: styles, onChange: (outputStyle) => void save({ outputStyle }) })}
         {select<EffortLevel>(t('h5Settings.effort'), { disabled: busy || !effortOptions.length, value: selectedEffort, options: effortOptions.map((value) => ({ value, label: effortLabels[value] })), onChange: (value) => void effort(value) })}
         {select<ChatSendBehavior>(t('h5Settings.sendBehavior'), { disabled: busy, value: settings.chatSendBehavior, options: [{ value: 'enter', label: t('h5Settings.enter') }, { value: 'modifierEnter', label: t('h5Settings.modifierEnter') }], onChange: (chatSendBehavior) => void save({ chatSendBehavior }) })}
+        {select<ChatLineBreakBehavior>(t('settings.general.chatLineBreakTitle'), { disabled: busy, value: settings.chatLineBreakBehavior, options: lineBreakBehaviors, onChange: (chatLineBreakBehavior) => void save({ chatLineBreakBehavior }) })}
         <SettingsSwitchRow disabled={busy} checked={settings.thinkingEnabled} title={t('settings.general.thinkingEnabled')} description={t('settings.general.thinkingDescription')} onChange={(alwaysThinkingEnabled) => void save({ alwaysThinkingEnabled })} />
         <SettingsSwitchRow disabled={busy} checked={settings.workflowKeywordTriggerEnabled} title={t('settings.general.workflowKeywordEnabled')} description={t('settings.general.workflowKeywordDescription')} onChange={(workflowKeywordTriggerEnabled) => void save({ workflowKeywordTriggerEnabled })} />
       </SettingsGroup>

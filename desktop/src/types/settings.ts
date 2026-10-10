@@ -55,6 +55,17 @@ export type WebSearchMode = 'auto' | 'anthropic' | 'tavily' | 'brave' | 'disable
 
 export type ChatSendBehavior = 'enter' | 'modifierEnter'
 
+export type ChatLineBreakBehavior = 'ctrlEnter' | 'altEnter' | 'shiftEnter' | 'enter'
+
+/** 换行键与发送键是同一个 Enter 组合时设置无法同时成立 */
+export function chatLineBreakConflictsWithSend(
+  lineBreak: ChatLineBreakBehavior,
+  send: ChatSendBehavior,
+): boolean {
+  return (send === 'enter' && lineBreak === 'enter') ||
+    (send === 'modifierEnter' && lineBreak === 'ctrlEnter')
+}
+
 export type OutputStyleSource =
   | 'built-in'
   | 'userSettings'
@@ -160,6 +171,7 @@ export type UserSettings = {
   permissionMode?: PermissionMode
   theme?: ThemeMode
   chatSendBehavior?: ChatSendBehavior
+  chatLineBreakBehavior?: ChatLineBreakBehavior
   outputStyle?: string
   skipWebFetchPreflight?: boolean
   desktopNotificationsEnabled?: boolean

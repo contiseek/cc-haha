@@ -617,7 +617,112 @@ describe('settingsStore network persistence', () => {
     await useSettingsStore.getState().setChatSendBehavior('modifierEnter')
 
     expect(useSettingsStore.getState().chatSendBehavior).toBe('modifierEnter')
-    expect(updateUser).toHaveBeenCalledWith({ chatSendBehavior: 'modifierEnter' })
+    expect(updateUser).toHaveBeenCalledWith({ chatSendBehavior: 'modifierEnter', chatLineBreakBehavior: 'enter' })
+  })
+
+  it('persists the line break shortcut and migrates it when the send behavior conflicts', async () => {
+    const updateUser = vi.fn().mockResolvedValue({})
+    vi.doMock('../api/settings', () => ({
+      settingsApi: {
+        getUser: vi.fn().mockResolvedValue({
+          chatSendBehavior: 'modifierEnter',
+          chatLineBreakBehavior: 'altEnter',
+        }),
+        updateUser,
+        getPermissionMode: vi.fn().mockResolvedValue({ mode: 'default' }),
+        setPermissionMode: vi.fn(),
+        getCliLauncherStatus: vi.fn(),
+      },
+    }))
+    vi.doMock('../api/models', () => ({
+      modelsApi: {
+        list: vi.fn().mockResolvedValue({ models: [] }),
+        getCurrent: vi.fn().mockResolvedValue({ model: null }),
+        setCurrent: vi.fn(),
+        getEffort: vi.fn().mockResolvedValue({ level: 'medium' }),
+        setEffort: vi.fn(),
+      },
+    }))
+    vi.doMock('../api/h5Access', () => ({
+      h5AccessApi: {
+        get: vi.fn().mockResolvedValue({
+          settings: {
+            enabled: false,
+            tokenPreview: null,
+            allowedOrigins: [],
+            publicBaseUrl: null,
+          },
+        }),
+        enable: vi.fn(),
+        disable: vi.fn(),
+        regenerate: vi.fn(),
+        update: vi.fn(),
+      },
+    }))
+
+    const { useSettingsStore } = await import('./settingsStore')
+
+    await useSettingsStore.getState().fetchAll()
+    expect(useSettingsStore.getState().chatLineBreakBehavior).toBe('altEnter')
+
+    await useSettingsStore.getState().setChatLineBreakBehavior('shiftEnter')
+    expect(useSettingsStore.getState().chatLineBreakBehavior).toBe('shiftEnter')
+    expect(updateUser).toHaveBeenCalledWith({ chatLineBreakBehavior: 'shiftEnter' })
+
+    // Ctrl+Enter 换行与 modifierEnter 发送冲突：迁移到 Enter 换行并同次写入
+    await useSettingsStore.getState().setChatSendBehavior('enter')
+    expect(useSettingsStore.getState().chatLineBreakBehavior).toBe('shiftEnter')
+    expect(useSettingsStore.getState().chatSendBehavior).toBe('enter')
+
+    await useSettingsStore.getState().setChatSendBehavior('modifierEnter')
+    expect(useSettingsStore.getState().chatLineBreakBehavior).toBe('shiftEnter')
+  })
+
+  it('falls back to the default line break shortcut for invalid or conflicting stored values', async () => {
+    const updateUser = vi.fn().mockResolvedValue({})
+    vi.doMock('../api/settings', () => ({
+      settingsApi: {
+        getUser: vi.fn().mockResolvedValue({
+          chatSendBehavior: 'enter',
+          chatLineBreakBehavior: 'enter',
+        }),
+        updateUser,
+        getPermissionMode: vi.fn().mockResolvedValue({ mode: 'default' }),
+        setPermissionMode: vi.fn(),
+        getCliLauncherStatus: vi.fn(),
+      },
+    }))
+    vi.doMock('../api/models', () => ({
+      modelsApi: {
+        list: vi.fn().mockResolvedValue({ models: [] }),
+        getCurrent: vi.fn().mockResolvedValue({ model: null }),
+        setCurrent: vi.fn(),
+        getEffort: vi.fn().mockResolvedValue({ level: 'medium' }),
+        setEffort: vi.fn(),
+      },
+    }))
+    vi.doMock('../api/h5Access', () => ({
+      h5AccessApi: {
+        get: vi.fn().mockResolvedValue({
+          settings: {
+            enabled: false,
+            tokenPreview: null,
+            allowedOrigins: [],
+            publicBaseUrl: null,
+          },
+        }),
+        enable: vi.fn(),
+        disable: vi.fn(),
+        regenerate: vi.fn(),
+        update: vi.fn(),
+      },
+    }))
+
+    const { useSettingsStore } = await import('./settingsStore')
+
+    await useSettingsStore.getState().fetchAll()
+    // 裸 Enter 与 enter 发送冲突，回退到默认的 Ctrl+Enter
+    expect(useSettingsStore.getState().chatLineBreakBehavior).toBe('ctrlEnter')
   })
 })
 

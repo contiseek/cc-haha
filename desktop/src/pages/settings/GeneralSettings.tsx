@@ -31,7 +31,8 @@ import { SelectField } from '@/components/ui/SelectField'
 import { PermissionModeSelector } from '../../components/controls/PermissionModeSelector'
 import { ReasoningEffortPopover } from '../../components/controls/ReasoningEffortPopover'
 import { isDarkThemeMode, isLightThemeMode } from '../../types/settings'
-import type { ThemeMode, NetworkProxyMode, WebSearchMode, AppMode, ChatSendBehavior, OutputStyleSource, ReasoningEffortLevel } from '../../types/settings'
+import type { ThemeMode, NetworkProxyMode, WebSearchMode, AppMode, ChatLineBreakBehavior, ChatSendBehavior, OutputStyleSource, ReasoningEffortLevel } from '../../types/settings'
+import { chatLineBreakConflictsWithSend } from '../../types/settings'
 import type { Locale } from '../../i18n'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useUIStore } from '../../stores/uiStore'
@@ -100,6 +101,8 @@ export function GeneralSettings() {
     setTheme,
     chatSendBehavior,
     setChatSendBehavior,
+    chatLineBreakBehavior,
+    setChatLineBreakBehavior,
     outputStyle,
     outputStyles,
     outputStyleScope,
@@ -351,6 +354,25 @@ export function GeneralSettings() {
       value: 'modifierEnter',
       label: t('settings.general.chatSendBehaviorModifier'),
       description: t('settings.general.chatSendBehaviorModifierDescription'),
+    },
+  ]
+
+  const CHAT_LINE_BREAK_BEHAVIORS: Array<{ value: ChatLineBreakBehavior; label: string }> = [
+    {
+      value: 'ctrlEnter',
+      label: t('settings.general.chatLineBreakCtrlEnter'),
+    },
+    {
+      value: 'altEnter',
+      label: t('settings.general.chatLineBreakAltEnter'),
+    },
+    {
+      value: 'shiftEnter',
+      label: t('settings.general.chatLineBreakShiftEnter'),
+    },
+    {
+      value: 'enter',
+      label: t('settings.general.chatLineBreakEnter'),
     },
   ]
 
@@ -941,6 +963,22 @@ export function GeneralSettings() {
               value={chatSendBehavior}
               onChange={(value) => void setChatSendBehavior(value)}
               items={CHAT_SEND_BEHAVIORS.map(({ value, label }) => ({ value, label }))}
+            />
+          </SettingsRow>
+          <SettingsRow
+            title={t('settings.general.chatLineBreakTitle')}
+            description={t('settings.general.chatLineBreakDescription')}
+          >
+            <SegmentedControl<ChatLineBreakBehavior>
+              label={t('settings.general.chatLineBreakTitle')}
+              size="sm"
+              value={chatLineBreakBehavior}
+              onChange={(value) => void setChatLineBreakBehavior(value)}
+              items={CHAT_LINE_BREAK_BEHAVIORS.map(({ value, label }) => ({
+                value,
+                label,
+                disabled: chatLineBreakConflictsWithSend(value, chatSendBehavior),
+              }))}
             />
           </SettingsRow>
           <SettingsRow

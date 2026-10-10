@@ -307,7 +307,7 @@ export class PublicAccessServer {
         }
         if (route === 'api/settings/user' && request.method === 'GET' && response.ok) {
           const settings = await response.json() as Record<string, unknown>
-          const allowed = ['alwaysThinkingEnabled', 'workflowKeywordTriggerEnabled', 'autoDreamEnabled', 'skipAutoPermissionPrompt', 'chatSendBehavior', 'outputStyle', 'skipWebFetchPreflight', 'language']
+          const allowed = ['alwaysThinkingEnabled', 'workflowKeywordTriggerEnabled', 'autoDreamEnabled', 'skipAutoPermissionPrompt', 'chatSendBehavior', 'chatLineBreakBehavior', 'outputStyle', 'skipWebFetchPreflight', 'language']
           return json(Object.fromEntries(allowed.filter(key => ['string', 'boolean', 'number'].includes(typeof settings[key])).map(key => [key, settings[key]])))
         }
         return secure(response)

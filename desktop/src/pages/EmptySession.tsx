@@ -52,7 +52,7 @@ import {
   type ComposerAttachment,
 } from '../lib/composerAttachments'
 import { useComposerFileDrop } from '../components/chat/useComposerFileDrop'
-import { shouldSubmitOnEnter } from '../components/chat/sendShortcut'
+import { resolveComposerEnterAction, shouldSubmitOnEnter } from '../components/chat/sendShortcut'
 import { MentionComposer, type MentionComposerHandle } from '../components/chat/MentionComposer'
 import {
   composerReferenceToMention,
@@ -184,6 +184,7 @@ export function EmptySession({ initialWorkDir = '' }: EmptySessionProps = {}) {
   const activeProviderName = useSettingsStore((state) => state.activeProviderName)
   const effortLevel = useSettingsStore((state) => state.effortLevel)
   const chatSendBehavior = useSettingsStore((state) => state.chatSendBehavior)
+  const chatLineBreakBehavior = useSettingsStore((state) => state.chatLineBreakBehavior)
   const defaultPermissionMode = useSettingsStore((state) => state.permissionMode)
   const providers = useProviderStore((state) => state.providers)
   const activeProviderId = useProviderStore((state) => state.activeId)
@@ -601,9 +602,19 @@ export function EmptySession({ initialWorkDir = '' }: EmptySessionProps = {}) {
       }
     }
 
-    if (shouldSubmitOnEnter(event, chatSendBehavior)) {
+    const enterAction = resolveComposerEnterAction(event, chatSendBehavior, chatLineBreakBehavior)
+    if (enterAction === 'submit') {
       event.preventDefault()
       void handleSubmit()
+      return true
+    }
+    if (enterAction === 'newline') {
+      event.preventDefault()
+      composerRef.current?.insertNewline()
+      return true
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
       return true
     }
     return false

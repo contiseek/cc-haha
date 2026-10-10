@@ -53,6 +53,8 @@ export type MentionComposerHandle = {
    * (dictation) and so has to find in the draft.
    */
   insertTextAtOffsets: (start: number, end: number, text: string, options?: { flash?: boolean }) => void
+  /** 在当前光标处拆分段落插入换行，走编辑器撤销栈。 */
+  insertNewline: () => void
   /**
    * Content for the model: text with each mention pill serialized to
    * file paths or explicit skill/plugin requests. Read from the live document, so literal text that
@@ -254,10 +256,11 @@ export const MentionComposer = forwardRef<MentionComposerHandle, MentionComposer
             keymap({
               'Backspace': deleteAdjacentMentionAtom('backward'),
               'Delete': deleteAdjacentMentionAtom('forward'),
-              // Unlike a textarea, ProseMirror does not include Shift+Enter in
-              // its base keymap. Keep the composer's configured newline path
-              // explicit instead of relying on browser contenteditable behavior.
-              'Shift-Enter': splitBlock,
+              // 换行键由设置决定，全部走 handleKeyDown 里的 resolveComposerEnterAction。
+              'Enter': () => true,
+              'Shift-Enter': () => true,
+              'Mod-Enter': () => true,
+              'Alt-Enter': () => true,
             }),
             keymap({ 'Mod-z': undo, 'Mod-y': redo, 'Mod-Shift-z': redo }),
             keymap(baseKeymap),
@@ -411,6 +414,11 @@ export const MentionComposer = forwardRef<MentionComposerHandle, MentionComposer
       getModelContent: () => {
         const view = viewRef.current
         return view ? serializeComposerDoc(view.state.doc) : ''
+      },
+      insertNewline: () => {
+        const view = viewRef.current
+        if (!view) return
+        if (splitBlock(view.state, view.dispatch)) view.focus()
       },
     }), [])
 

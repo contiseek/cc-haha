@@ -5,8 +5,10 @@ import { modelsApi } from '../api/models'
 import { h5AccessApi } from '../api/h5Access'
 import { tracesApi } from '../api/traces'
 import {
+  chatLineBreakConflictsWithSend,
   type AppMode,
   type AppModeConfig,
+  type ChatLineBreakBehavior,
   type ChatSendBehavior,
   type DesktopTerminalSettings,
   type DesktopTerminalStartupShell,
@@ -78,6 +80,7 @@ type SettingsStore = {
   // setTheme, and the Settings picker highlighted a theme that was no longer
   // on screen. Read `useUIStore(s => s.theme)` instead.
   chatSendBehavior: ChatSendBehavior
+  chatLineBreakBehavior: ChatLineBreakBehavior
   outputStyle: string
   outputStyles: OutputStyleOption[]
   outputStyleScope: OutputStylesResponse['scope']
@@ -119,6 +122,7 @@ type SettingsStore = {
   setLocale: (locale: Locale) => void
   setTheme: (theme: ThemeMode) => Promise<void>
   setChatSendBehavior: (behavior: ChatSendBehavior) => Promise<void>
+  setChatLineBreakBehavior: (behavior: ChatLineBreakBehavior) => Promise<void>
   fetchOutputStyles: (workDir?: string | null) => Promise<void>
   setOutputStyle: (outputStyle: string, workDir?: string | null) => Promise<void>
   setSkipWebFetchPreflight: (enabled: boolean) => Promise<void>
@@ -215,6 +219,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   activeProviderName: null,
   locale: initialLocale,
   chatSendBehavior: 'enter',
+  chatLineBreakBehavior: 'ctrlEnter',
   outputStyle: DEFAULT_OUTPUT_STYLE,
   outputStyles: DEFAULT_OUTPUT_STYLE_OPTIONS,
   outputStyleScope: 'userSettings',
@@ -291,6 +296,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         autoQuestion: normalizeAutoQuestionSettings(userSettings.autoQuestion),
         autoModeOptInAccepted: userSettings.skipAutoPermissionPrompt === true,
         chatSendBehavior: normalizeChatSendBehavior(userSettings.chatSendBehavior),
+        chatLineBreakBehavior: normalizeChatLineBreakBehavior(
+          userSettings.chatLineBreakBehavior,
+          normalizeChatSendBehavior(userSettings.chatSendBehavior),
+        ),
         outputStyle: normalizeOutputStyle(userSettings.outputStyle),
         skipWebFetchPreflight: userSettings.skipWebFetchPreflight !== false,
         desktopNotificationsEnabled: userSettings.desktopNotificationsEnabled === true,
@@ -434,13 +443,29 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   setChatSendBehavior: async (behavior) => {
-    const prev = get().chatSendBehavior
-    const next = normalizeChatSendBehavior(behavior)
-    set({ chatSendBehavior: next })
+    const prev = {
+      chatSendBehavior: get().chatSendBehavior,
+      chatLineBreakBehavior: get().chatLineBreakBehavior,
+    }
+    const nextSend = normalizeChatSendBehavior(behavior)
+    const nextLineBreak = resolveLineBreakForSend(nextSend, prev.chatLineBreakBehavior)
+    set({ chatSendBehavior: nextSend, chatLineBreakBehavior: nextLineBreak })
     try {
-      await settingsApi.updateUser({ chatSendBehavior: next })
+      await settingsApi.updateUser({ chatSendBehavior: nextSend, chatLineBreakBehavior: nextLineBreak })
     } catch (error) {
-      set({ chatSendBehavior: prev })
+      set(prev)
+      throw error
+    }
+  },
+
+  setChatLineBreakBehavior: async (behavior) => {
+    const prev = get().chatLineBreakBehavior
+    const next = normalizeChatLineBreakBehavior(behavior, get().chatSendBehavior)
+    set({ chatLineBreakBehavior: next })
+    try {
+      await settingsApi.updateUser({ chatLineBreakBehavior: next })
+    } catch (error) {
+      set({ chatLineBreakBehavior: prev })
       throw error
     }
   },
@@ -745,6 +770,25 @@ function normalizeWebSearchSettings(settings: WebSearchSettings | undefined): We
 
 function normalizeChatSendBehavior(value: unknown): ChatSendBehavior {
   return value === 'modifierEnter' ? 'modifierEnter' : 'enter'
+}
+
+const CHAT_LINE_BREAK_BEHAVIORS: readonly ChatLineBreakBehavior[] = ['ctrlEnter', 'altEnter', 'shiftEnter', 'enter']
+
+/** 默认换行键避开发送键：Enter 发送时用 Ctrl+Enter，Ctrl+Enter 发送时用 Enter。 */
+function defaultLineBreakForSend(send: ChatSendBehavior): ChatLineBreakBehavior {
+  return send === 'modifierEnter' ? 'enter' : 'ctrlEnter'
+}
+
+function normalizeChatLineBreakBehavior(value: unknown, send: ChatSendBehavior): ChatLineBreakBehavior {
+  if (CHAT_LINE_BREAK_BEHAVIORS.includes(value as ChatLineBreakBehavior) && !chatLineBreakConflictsWithSend(value as ChatLineBreakBehavior, send)) {
+    return value as ChatLineBreakBehavior
+  }
+  return defaultLineBreakForSend(send)
+}
+
+/** 发送方式变化导致换行键冲突时，迁移到该发送方式下的默认换行键。 */
+function resolveLineBreakForSend(send: ChatSendBehavior, current: ChatLineBreakBehavior): ChatLineBreakBehavior {
+  return chatLineBreakConflictsWithSend(current, send) ? defaultLineBreakForSend(send) : current
 }
 
 function normalizeOutputStyle(value: unknown): string {

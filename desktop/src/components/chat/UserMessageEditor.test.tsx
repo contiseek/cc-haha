@@ -28,7 +28,7 @@ function renderEditor(overrides: Partial<Parameters<typeof UserMessageEditor>[0]
 
 describe('UserMessageEditor', () => {
   afterEach(() => {
-    useSettingsStore.setState({ locale: 'en', chatSendBehavior: 'enter' })
+    useSettingsStore.setState({ locale: 'en', chatSendBehavior: 'enter', chatLineBreakBehavior: 'shiftEnter' })
   })
 
   it('opens focused on the draft with the caret at the end', () => {
@@ -41,7 +41,7 @@ describe('UserMessageEditor', () => {
   })
 
   it('submits the edited draft on Enter but not on Shift+Enter', () => {
-    useSettingsStore.setState({ locale: 'en', chatSendBehavior: 'enter' })
+    useSettingsStore.setState({ locale: 'en', chatSendBehavior: 'enter', chatLineBreakBehavior: 'shiftEnter' })
     const { textbox, onSubmit, onDraftChange } = renderEditor()
 
     fireEvent.change(textbox, { target: { value: 'Fix the signup bug' } })
@@ -52,7 +52,23 @@ describe('UserMessageEditor', () => {
 
     fireEvent.keyDown(textbox, { key: 'Enter' })
     expect(onSubmit).toHaveBeenCalledOnce()
-    expect(onSubmit).toHaveBeenCalledWith({ ...DRAFT, text: 'Fix the signup bug' })
+    expect(onSubmit).toHaveBeenCalledWith({ ...DRAFT, text: 'Fix the signup bug\n' })
+  })
+
+  it('follows the configured line break shortcut for newlines', () => {
+    useSettingsStore.setState({ locale: 'en', chatSendBehavior: 'enter', chatLineBreakBehavior: 'shiftEnter' })
+    const { textbox, onSubmit } = renderEditor()
+
+    fireEvent.keyDown(textbox, { key: 'Enter', ctrlKey: true })
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(textbox.value).toBe('Fix the bug')
+
+    fireEvent.keyDown(textbox, { key: 'Enter', shiftKey: true })
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(textbox.value).toBe('Fix the bug\n')
+
+    fireEvent.keyDown(textbox, { key: 'Enter' })
+    expect(onSubmit).toHaveBeenCalledOnce()
   })
 
   it('does not submit the Enter that confirms an IME composition', () => {
@@ -68,7 +84,7 @@ describe('UserMessageEditor', () => {
   })
 
   it('follows the modifier+Enter send setting', () => {
-    useSettingsStore.setState({ locale: 'en', chatSendBehavior: 'modifierEnter' })
+    useSettingsStore.setState({ locale: 'en', chatSendBehavior: 'modifierEnter', chatLineBreakBehavior: 'enter' })
     const { textbox, onSubmit } = renderEditor()
 
     fireEvent.keyDown(textbox, { key: 'Enter' })

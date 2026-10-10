@@ -2,8 +2,8 @@ import type { RequestCompatibility, SavedProvider } from './types/provider.js'
 import { AUTO_QUESTION_TIMEOUT_OPTIONS, normalizeAutoQuestionSettings } from '../shared/autoQuestionSettings.js'
 
 export type ApiRequestContext = { remoteBrowser?: boolean }
-const READ_SETTINGS = ['alwaysThinkingEnabled', 'workflowKeywordTriggerEnabled', 'autoDreamEnabled', 'skipAutoPermissionPrompt', 'chatSendBehavior', 'outputStyle', 'skipWebFetchPreflight', 'language']
-const WRITE_SETTINGS = new Set(['language', 'chatSendBehavior', 'alwaysThinkingEnabled', 'workflowKeywordTriggerEnabled', 'outputStyle', 'autoQuestion'])
+const READ_SETTINGS = ['alwaysThinkingEnabled', 'workflowKeywordTriggerEnabled', 'autoDreamEnabled', 'skipAutoPermissionPrompt', 'chatSendBehavior', 'chatLineBreakBehavior', 'outputStyle', 'skipWebFetchPreflight', 'language']
+const WRITE_SETTINGS = new Set(['language', 'chatSendBehavior', 'chatLineBreakBehavior', 'alwaysThinkingEnabled', 'workflowKeywordTriggerEnabled', 'outputStyle', 'autoQuestion'])
 const RESERVED_PROVIDER_PATHS = new Set(['settings', 'cc-switch', 'test', 'models', 'presets', 'auth-status', 'official', 'reorder'])
 const REMOTE_COMPATIBILITY_KEYS = new Set(['maxOutputTokens', 'outputTokenLimit', 'outputTokenField', 'sampling', 'reasoning', 'parallelTools', 'structuredOutput'])
 
@@ -46,6 +46,7 @@ export function validateRemoteSettingsPatch(input: Record<string, unknown>): boo
     if (key === 'language') return typeof value === 'string' && value.length <= 80
     if (key === 'outputStyle') return typeof value === 'string' && ['default', 'Explanatory', 'Learning'].includes(value)
     if (key === 'chatSendBehavior') return value === 'enter' || value === 'modifierEnter'
+    if (key === 'chatLineBreakBehavior') return value === 'ctrlEnter' || value === 'altEnter' || value === 'shiftEnter' || value === 'enter'
     if (key === 'autoQuestion') return value !== null && typeof value === 'object' &&
       !Array.isArray(value) && Object.keys(value).length === 2 &&
       Object.keys(value).every((field) => field === 'enabled' || field === 'timeoutMinutes') &&

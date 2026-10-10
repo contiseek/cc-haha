@@ -1,11 +1,11 @@
 import { DiagLogLevel, diag, trace } from '@opentelemetry/api'
 import { logs } from '@opentelemetry/api-logs'
+import * as os from 'os'
 // OTLP/Prometheus exporters are dynamically imported inside the protocol
 // switch statements below. A process uses at most one protocol variant per
 // signal, but static imports would load all 6 (~1.2MB) on every startup.
 import {
   envDetector,
-  hostDetector,
   osDetector,
   resourceFromAttributes,
 } from '@opentelemetry/resources'
@@ -69,6 +69,14 @@ import {
 const DEFAULT_METRICS_EXPORT_INTERVAL_MS = 60000
 const DEFAULT_LOGS_EXPORT_INTERVAL_MS = 5000
 const DEFAULT_TRACES_EXPORT_INTERVAL_MS = 5000
+
+// Maps Node arch values to OTEL semantic-convention arch values.
+function normalizeNodeArch(nodeArch: string): string {
+  if (nodeArch === 'arm') return 'arm32'
+  if (nodeArch === 'ppc') return 'ppc32'
+  if (nodeArch === 'x64') return 'amd64'
+  return nodeArch
+}
 
 class TelemetryTimeoutError extends Error {}
 
@@ -490,14 +498,12 @@ export async function initializeTelemetry() {
     osDetector.detect().attributes || {},
   )
 
-  // Extract only host.arch from hostDetector
-  const hostDetected = hostDetector.detect()
-  const hostArchAttributes = hostDetected.attributes?.[SEMRESATTRS_HOST_ARCH]
-    ? {
-        [SEMRESATTRS_HOST_ARCH]: hostDetected.attributes[SEMRESATTRS_HOST_ARCH],
-      }
-    : {}
-  const hostArchResource = resourceFromAttributes(hostArchAttributes)
+  // host.arch straight from Node — hostDetector would additionally resolve
+  // host.id via a REG.exe MachineGuid subprocess, which flashes a console
+  // window when the CLI runs without one on Windows.
+  const hostArchResource = resourceFromAttributes({
+    [SEMRESATTRS_HOST_ARCH]: normalizeNodeArch(os.arch()),
+  })
 
   const envResource = resourceFromAttributes(
     envDetector.detect().attributes || {},

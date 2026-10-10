@@ -1855,6 +1855,7 @@ export class WorkspaceService {
         timeout: GIT_TIMEOUT_MS,
         maxBuffer: MAX_GIT_BUFFER_BYTES,
         encoding: 'utf8',
+        windowsHide: true,
       })
 
       return {

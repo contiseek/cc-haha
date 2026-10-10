@@ -3089,6 +3089,7 @@ const usageReport: Command = {
         execFileSync('ff', ['cp', htmlPath, s3Path], {
           timeout: 60000,
           stdio: 'pipe', // Suppress output
+          windowsHide: true,
         })
       } catch {
         // Upload failed - fall back to local file and show upload command

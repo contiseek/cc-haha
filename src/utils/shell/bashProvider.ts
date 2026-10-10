@@ -102,7 +102,11 @@ export async function createBashShellProvider(
   return {
     type: 'bash',
     shellPath,
-    detached: true,
+    // POSIX process-group lifetime management runs through parentProcessGuard's
+    // own /bin/sh wrapper, which sets detached there. On Windows detached maps
+    // to DETACHED_PROCESS, which makes msys2 consoles detach from the hidden
+    // parent and flash a visible window; direct spawn keeps windowsHide intact.
+    detached: process.platform !== 'win32',
 
     async buildExecCommand(
       command: string,
